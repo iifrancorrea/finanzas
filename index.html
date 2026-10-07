@@ -42,7 +42,20 @@ header.top{position:sticky;top:0;z-index:20;background:var(--s1);border-bottom:1
 .month button{width:32px;height:32px;border-radius:3px;color:var(--soft);font-size:18px;text-align:center}
 .month button:hover{background:var(--s3);color:var(--ink)}
 .month span{min-width:118px;text-align:center;font-weight:650;font-size:14px}
-.tracker{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding-bottom:10px}
+.tracker{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;padding-bottom:10px}
+.trk.nx .l{color:var(--faint)}
+/* Splash y login */
+#splash{position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;transition:opacity .25s}
+#splash.out{opacity:0;pointer-events:none}
+#splash .brand{font-size:30px}
+.spbar{width:120px;height:2px;background:var(--line);overflow:hidden}
+.spbar i{display:block;width:40%;height:100%;background:var(--acc);animation:spb 1s ease-in-out infinite}
+@keyframes spb{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+.gate{position:fixed;inset:0;z-index:90;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:16px;overflow:auto}
+.gbox{width:100%;max-width:360px;background:var(--s1);border:1px solid var(--line);border-radius:var(--r);padding:24px 20px}
+.gbox .brand{font-size:24px;margin-bottom:20px}
+.gbox .btn{width:100%}
+.lgerr{font-size:13px;min-height:18px;margin:-4px 0 10px}
 .trk{background:var(--s2);border:1px solid var(--line);border-radius:var(--rs);padding:6px 10px;min-width:0}
 .trk .l{font-size:10.5px;text-transform:uppercase;letter-spacing:.6px;color:var(--faint);font-weight:700}
 .trk .v{font-weight:750;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -203,7 +216,7 @@ button.badge.pend{border:1px solid var(--acc)}
   .grid2{grid-template-columns:1fr}
   .filters{grid-template-columns:1fr 1fr}
 }
-@media (max-width:379px){.sync span{display:none}}
+@media (max-width:479px){.sync span{display:none}.sync{padding:8px}}
 @media (max-width:719px){
   nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--s1);border-top:1px solid var(--line);padding:2px 2px calc(2px + env(safe-area-inset-bottom));z-index:30}
   nav.tabs button{flex:1;flex-direction:column;gap:1px;padding:7px 0 6px;font-size:10.5px;border-bottom:0;border-top:2px solid transparent;min-width:0}
@@ -216,6 +229,9 @@ button.badge.pend{border:1px solid var(--acc)}
   .top-row{padding:10px 0 8px}
   .trk{padding:5px 8px}
   .trk .v{font-size:14px}
+  .tracker{grid-template-columns:repeat(3,1fr)}
+  .trk.nx{grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:4px 8px}
+  .trk.nx .v{font-size:13px}
   .kpis{grid-template-columns:1fr;gap:10px}
   .kpi{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
   .kpi .v{font-size:20px;margin:0}
@@ -226,6 +242,15 @@ button.badge.pend{border:1px solid var(--acc)}
 </style>
 </head>
 <body>
+<div id="splash"><div class="brand">Finan<b>zas</b></div><div class="spbar"><i></i></div></div>
+<div id="login" class="gate hidden"><form class="gbox" id="lgForm" autocomplete="on">
+  <div class="brand">Finan<b>zas</b></div>
+  <div class="field"><label for="lgMail">Email</label><input class="in" id="lgMail" type="email" autocomplete="username" autocapitalize="off" spellcheck="false"></div>
+  <div class="field"><label for="lgPass">Contraseña</label><input class="in" id="lgPass" type="password" autocomplete="current-password"></div>
+  <div class="lgerr exp" id="lgErr"></div>
+  <button class="btn pri big" id="lgGo" type="submit">Entrar</button>
+  <div class="note">Las cuentas las da de alta el administrador.</div>
+</form></div>
 <header class="top">
   <div class="wrap">
     <div class="top-row">
@@ -725,20 +750,15 @@ V.datos=function(w){
   const catList=t=>catsSorted(t).map(c=>'<div class="item"><span class="ico">'+ic(c.icon)+'</span><span class="body"><span class="t">'+esc(c.name)+'</span></span><button class="xbtn" data-delcat="'+c.id+'" aria-label="Eliminar">✕</button></div>').join('');
   w.innerHTML='<div class="grid2"><div class="stack">'+
     (syOn()?
-      '<section class="card"><h3 class="h">Sincronización en la nube</h3>'+
-        '<div class="kv"><span>Cuenta</span><span>'+esc(SY.session.email||'')+'</span></div>'+
+      '<section class="card"><h3 class="h">Cuenta</h3>'+
+        '<div class="kv"><span>Usuario</span><span>'+esc(SY.session.email||'')+'</span></div>'+
         '<div class="kv"><span>Estado</span><span class="'+(syState==='ok'?'inc':syState==='busy'?'acc':'exp')+'">'+({ok:'Al día',busy:'Sincronizando…',offline:'Sin conexión',error:'Error',login:'Sesión vencida'}[syState]||'—')+'</span></div>'+
-        '<div class="kv"><span>Última sincronización</span><span class="tnum">'+(SY.last?dLabel(todayISO()).slice(0,0)+new Date(SY.last).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—')+'</span></div>'+
+        '<div class="kv"><span>Última sincronización</span><span class="tnum">'+(SY.last?new Date(SY.last).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—')+'</span></div>'+
         (syMsg&&syState!=='ok'&&syState!=='busy'?'<div class="note exp">'+esc(syMsg)+'</div>':'')+
-        '<div class="actions" style="margin-top:12px"><button class="btn ghost" id="syOff">Desconectar</button><button class="btn pri big" id="syNow">Sincronizar ahora</button></div></section>'
+        '<div class="actions" style="margin-top:12px"><button class="btn ghost" id="syOff">Cerrar sesión</button><button class="btn pri big" id="syNow">Sincronizar ahora</button></div></section>'
     :
-      '<section class="card"><h3 class="h">Sincronización en la nube</h3>'+
-        '<div class="field"><label>Project URL</label><input class="in" id="syUrl" placeholder="https://xxxx.supabase.co" autocomplete="off" autocapitalize="off" value="'+esc(SY.url||'')+'"></div>'+
-        '<div class="field"><label>Publishable key</label><input class="in" id="syKey" placeholder="sb_publishable_…" autocomplete="off" autocapitalize="off" value="'+esc(SY.key||'')+'"></div>'+
-        '<div class="row"><div class="field"><label>Email</label><input class="in" id="syMail" type="email" autocomplete="username" value="'+esc(SY.session&&SY.session.email||SY.email||'')+'"></div>'+
-        '<div class="field"><label>Contraseña</label><input class="in" id="syPass" type="password" autocomplete="current-password"></div></div>'+
-        '<div class="actions"><button class="btn pri big" id="syGo">Conectar</button></div>'+
-        '<div class="note">Se hace una sola vez por dispositivo. La contraseña no se guarda: queda una sesión que se renueva sola.</div></section>')+
+      '<section class="card"><h3 class="h">Cuenta</h3><div class="note exp" style="margin-top:0">Sesión vencida. Los datos de este dispositivo se conservan.</div>'+
+        '<div class="actions" style="margin-top:12px"><button class="btn pri big" id="syGo">Volver a entrar</button></div></section>')+
     '<section class="card"><h3 class="h">Respaldo manual</h3>'+
       '<div class="actions"><button class="btn pri big" id="exp">Exportar</button><button class="btn big" id="imp">Importar</button></div>'+
       '<div class="note">'+(le?'Último export: hace '+(days===0?'menos de un día':days+' día'+(days===1?'':'s')):'Todavía no exportaste.')+
@@ -754,8 +774,8 @@ V.datos=function(w){
       '<div class="addrow"><input class="in" id="nName" placeholder="Nueva categoría"><select class="in" id="nType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select><button class="btn sm" id="nAdd">+</button></div><div class="iconpick" id="nIcons">'+Object.keys(ICONS).filter(k=>k!=='card').map(k=>'<button class="cbtn '+(k===UI.newIcon?'on':'')+'" data-ni="'+k+'" aria-label="'+k+'">'+ic(k)+'</button>').join('')+'</div></section>'+
   '</div></div>';
   w.querySelector('#exp').onclick=doExport;
-  if(syOn()){w.querySelector('#syNow').onclick=()=>sync(true);w.querySelector('#syOff').onclick=syDisconnect;}
-  else w.querySelector('#syGo').onclick=()=>{SY.email=w.querySelector('#syMail').value.trim();syConnect(w.querySelector('#syUrl').value,w.querySelector('#syKey').value,w.querySelector('#syMail').value,w.querySelector('#syPass').value);};
+  if(syOn()){w.querySelector('#syNow').onclick=()=>sync(true);w.querySelector('#syOff').onclick=syLogout;}
+  else w.querySelector('#syGo').onclick=()=>showLogin();
   w.querySelector('#imp').onclick=()=>$('#fileIn').click();
   w.querySelector('#rateSave').onclick=()=>{const v=parseAmt(w.querySelector('#rate').value);if(!(v>0))return toast('Cotización inválida');S.rate={v,updated:now()};save();render();toast('Cotización actualizada');};
   w.querySelector('#ncAdd').onclick=()=>{
@@ -830,9 +850,14 @@ $('#fileIn').addEventListener('change',e=>{
 // Cada registro (movimiento, fijo, tarjeta, categoría, pago de resumen, cotización) es una fila de fin_records.
 // Pull: baja lo que cambió en el servidor desde el último cursor (srv_at). Push: sube lo que cambió acá desde el último envío.
 // Gana la versión con 'updated' más alto, acá (syApply) y en el servidor (trigger fin_records_guard).
+// Conexión fija: la publishable key es pública por diseño; lo que protege los datos son las políticas RLS de Supabase.
+const SB_URL='https://kzijjqwfcdudnvsjrhep.supabase.co';
+const SB_KEY='sb_publishable_45C36i1mhW_Vi0poa1_hfQ_DqVfwSUC';   // ← pegar acá la Publishable key (Supabase → Settings → API Keys)
 var LSS=LS+'-sync',KINDS=['cats','cards','movs','fixed','cardPays'];
 var SY=(function(){try{return JSON.parse(localStorage.getItem(LSS))||{};}catch(e){return {};}})();
 SY.pushed=SY.pushed||{};SY.cursor=SY.cursor||'';
+SY.url=SB_URL;if(SB_KEY)SY.key=SB_KEY;           // dispositivos ya conectados conservan la key que tenían guardada
+if(SY.session&&!SY.uid)SY.uid=SY.session.user_id; // dueño de los datos locales de este dispositivo
 var syBusy=false,syAgain=false,syTimer=null,syState='off',syMsg='';
 function sySave(){try{localStorage.setItem(LSS,JSON.stringify(SY));}catch(e){}}
 function syOn(){return !!(SY.url&&SY.key&&SY.session);}
@@ -892,9 +917,12 @@ async function syPull(){
   }
   return n;
 }
-async function syPush(){
+function syDirty(){
   const all=[];for(const k of KINDS)for(const r of S[k])if(r&&r.id)all.push([k,r.id,r]);all.push(['rate','rate',S.rate]);
-  const dirty=all.filter(([k,id,r])=>SY.pushed[k+':'+id]!==(r.updated||0));
+  return all.filter(([k,id,r])=>SY.pushed[k+':'+id]!==(r.updated||0)&&(r.updated||0)>0);
+}
+async function syPush(){
+  const dirty=syDirty();
   for(let i=0;i<dirty.length;i+=400){
     const chunk=dirty.slice(i,i+400).map(([k,id,r])=>({user_id:SY.session.user_id,kind:k,id,updated:r.updated||0,data:JSON.parse(JSON.stringify(r))}));
     await syFetch('/rest/v1/fin_records?on_conflict=user_id,kind,id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(chunk)});
@@ -919,7 +947,7 @@ async function sync(manual){
     SY.last=now();sySave();setSy('ok');
     if(manual)toast('Sincronizado'+(n?' · '+n+' recibidos':'')+(up?' · '+up+' enviados':''));
   }catch(e){
-    if(!syOn()){setSy('login','La sesión venció: volvé a iniciar sesión en Datos');if(manual)toast('Volvé a iniciar sesión');}
+    if(!syOn()){setSy('login','La sesión venció: tocá para volver a entrar');if(manual)toast('Volvé a iniciar sesión');}
     else if(e instanceof TypeError||navigator.onLine===false){setSy('offline','Sin conexión: los cambios quedan guardados acá y se suben al volver la red');if(manual)toast('Sin conexión');}
     else{setSy('error',e.message);if(manual)toast('Error de sync: '+e.message);}
   }finally{
@@ -928,22 +956,38 @@ async function sync(manual){
     if(syAgain){syAgain=false;syLater(500);}
   }
 }
-async function syConnect(url,key,email,pass){
-  url=String(url).trim().replace(/\/+$/,'');key=String(key).trim();
-  if(!/^https:\/\/[^\s/]+$/.test(url))return toast('URL inválida (https://xxxx.supabase.co)');
-  if(!key)return toast('Falta la clave publishable');
-  if(!email||!pass)return toast('Falta email o contraseña');
-  SY.url=url;SY.key=key;SY.cursor='';SY.pushed={};
-  try{setSy('busy');await syAuth({email:email.trim(),password:pass},'password');}
-  catch(e){SY.session=null;sySave();setSy('off');
-    return toast(e instanceof TypeError?'No se pudo conectar con esa URL':/invalid/i.test(e.message)?'Email o contraseña incorrectos':'Error: '+e.message);}
-  render();await sync(true);
+function showLogin(msg){
+  const g=$('#login');g.classList.remove('hidden');
+  $('#lgMail').value=SY.email||'';$('#lgPass').value='';$('#lgErr').textContent=msg||'';
+  setTimeout(()=>{try{(SY.email?$('#lgPass'):$('#lgMail')).focus();}catch(e){}},50);
 }
-function syDisconnect(){
-  if(!confirm('¿Desconectar este dispositivo de la nube? Los datos locales se mantienen.'))return;
-  SY.session=null;sySave();setSy('off');render();toast('Desconectado');
+function hideLogin(){$('#login').classList.add('hidden');}
+async function syLogin(email,pass){
+  const err=m=>{$('#lgErr').textContent=m;};
+  email=String(email||'').trim();
+  if(!SY.key)return err('Falta configurar la clave de Supabase en el código (SB_KEY).');
+  if(!email||!pass)return err('Completá email y contraseña.');
+  const btn=$('#lgGo');btn.disabled=true;btn.textContent='Entrando…';err('');
+  try{await syAuth({email,password:pass},'password');}
+  catch(e){SY.session=null;sySave();btn.disabled=false;btn.textContent='Entrar';
+    return err(e instanceof TypeError?'Sin conexión: hace falta internet para entrar.':/invalid/i.test(e.message)?'Email o contraseña incorrectos.':'Error: '+e.message);}
+  btn.disabled=false;btn.textContent='Entrar';
+  const id=SY.session.user_id;
+  // si en este dispositivo había datos de otra cuenta, se descartan antes de sincronizar
+  if(SY.uid&&SY.uid!==id){S=fresh();save(true);SY.cursor='';SY.pushed={};SY.last=0;}
+  SY.uid=id;SY.email=email;sySave();
+  hideLogin();UI.tab='cargar';render();await sync(true);
 }
-$('#syncBtn').addEventListener('click',()=>{if(syState==='login'){UI.tab='datos';render();}else sync(true);});
+async function syLogout(){
+  let n=syDirty().length;
+  if(n&&navigator.onLine!==false){await sync(false);n=syDirty().length;}
+  if(!confirm(n?'Hay '+n+' cambio'+(n===1?'':'s')+' sin subir a la nube y se van a perder. ¿Cerrar sesión igual?':'¿Cerrar sesión? Los datos se borran de este dispositivo y quedan guardados en la nube.'))return;
+  clearTimeout(syTimer);
+  SY={pushed:{},cursor:'',url:SB_URL,key:SY.key,email:SY.email};sySave();
+  S=fresh();save(true);setSy('off');UI.tab='cargar';render();showLogin();
+}
+$('#lgForm').addEventListener('submit',e=>{e.preventDefault();syLogin($('#lgMail').value,$('#lgPass').value);});
+$('#syncBtn').addEventListener('click',()=>{if(syState==='login')showLogin('La sesión venció. Volvé a entrar.');else sync(true);});
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync(false);});
 window.addEventListener('online',()=>sync(false));
 setInterval(()=>{if(document.visibilityState!=='hidden')sync(false);},120000);
@@ -951,10 +995,11 @@ setInterval(()=>{if(document.visibilityState!=='hidden')sync(false);},120000);
 /* ───────── Render general ───────── */
 function renderHeader(){
   $('#mLbl').textContent=ymLabel(UI.ym);
-  const D=monthData(UI.ym,UI.mode);
+  const D=monthData(UI.ym,UI.mode),NX=addM(UI.ym,1),N=monthData(NX,UI.mode);
   $('#tracker').innerHTML='<div class="trk"><div class="l">Ingresos</div><div class="v inc">'+fmt(D.incT,'UYU')+'</div></div>'+
     '<div class="trk"><div class="l">Gastos</div><div class="v exp">'+fmt(D.expT,'UYU')+'</div></div>'+
-    '<div class="trk"><div class="l">Saldo · '+(UI.mode==='caja'?'caja':'consumo')+'</div><div class="v '+(D.net>=0?'inc':'exp')+'">'+fmt(D.net,'UYU')+'</div></div>';
+    '<div class="trk"><div class="l">Saldo · '+(UI.mode==='caja'?'caja':'consumo')+'</div><div class="v '+(D.net>=0?'inc':'exp')+'">'+fmt(D.net,'UYU')+'</div></div>'+
+    '<div class="trk nx"><div class="l">Saldo · '+MES[+NX.slice(5)-1]+'</div><div class="v '+(N.net>=0?'inc':'exp')+'">'+fmt(N.net,'UYU')+'</div></div>';
   const np=pendings().length;
   $('#tabs').innerHTML=TABS.map(([k,l,i])=>'<button data-tab="'+k+'" class="'+(UI.tab===k?'on':'')+'"><span class="ic">'+i+'</span><span>'+l+'</span>'+(k==='movs'&&np?'<span class="cnt">'+np+'</span>':'')+'</button>').join('');
 }
@@ -972,9 +1017,15 @@ $('#main').addEventListener('click',e=>{
 });
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 
-window.__fin={get S(){return S;},get SY(){return SY;},get syState(){return syState;},UI,render,merge,monthData,allInst,parseAmt,stmtOf,dueISO,sync,syConnect,save};
-render();
-if(syOn()){setSy('idle');sync(false);}
+window.__fin={get S(){return S;},get SY(){return SY;},get syState(){return syState;},UI,render,merge,monthData,allInst,parseAmt,stmtOf,dueISO,sync,syLogin,syLogout,syDirty,save};
+// Splash: mínimo 0,7 s para que no parpadee; con sesión espera la primera sync, como mucho 2,5 s
+const T0=now();
+function endSplash(){
+  setTimeout(()=>{const sp=$('#splash');if(!sp)return;sp.classList.add('out');setTimeout(()=>sp.remove(),300);},Math.max(0,700-(now()-T0)));
+}
+sySave();render();
+if(syOn()){setSy('idle');Promise.race([sync(false),new Promise(r=>setTimeout(r,2500))]).then(endSplash);}
+else{showLogin(SY.uid?'La sesión venció. Volvé a entrar.':'');endSplash();}
 })();
 </script>
 </body>
