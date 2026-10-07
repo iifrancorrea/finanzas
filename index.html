@@ -30,6 +30,14 @@ header.top{position:sticky;top:0;z-index:20;background:var(--s1);border-bottom:1
 .brand{font-weight:750;font-size:18px;letter-spacing:.2px}
 .brand b{color:var(--acc);font-weight:750}
 .sp{flex:1}
+.sync{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--faint);padding:5px 8px;border:1px solid var(--line);border-radius:3px;white-space:nowrap}
+.sync:hover{color:var(--ink)}
+.sync i{width:7px;height:7px;border-radius:1px;background:var(--faint);flex:none}
+.sync.ok i{background:var(--inc)} .sync.busy i{background:var(--acc)} .sync.error i,.sync.login i{background:var(--exp)}
+.sync.login,.sync.error{color:var(--exp);border-color:#6d3d37}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;padding:6px 0;border-bottom:1px solid var(--line)}
+.kv:last-of-type{border-bottom:0}
+.kv span:first-child{color:var(--faint)}
 .month{display:flex;align-items:center;gap:2px;background:var(--s2);border:1px solid var(--line);border-radius:3px;padding:2px}
 .month button{width:32px;height:32px;border-radius:3px;color:var(--soft);font-size:18px;text-align:center}
 .month button:hover{background:var(--s3);color:var(--ink)}
@@ -195,6 +203,7 @@ button.badge.pend{border:1px solid var(--acc)}
   .grid2{grid-template-columns:1fr}
   .filters{grid-template-columns:1fr 1fr}
 }
+@media (max-width:379px){.sync span{display:none}}
 @media (max-width:719px){
   nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--s1);border-top:1px solid var(--line);padding:2px 2px calc(2px + env(safe-area-inset-bottom));z-index:30}
   nav.tabs button{flex:1;flex-direction:column;gap:1px;padding:7px 0 6px;font-size:10.5px;border-bottom:0;border-top:2px solid transparent;min-width:0}
@@ -221,6 +230,7 @@ button.badge.pend{border:1px solid var(--acc)}
   <div class="wrap">
     <div class="top-row">
       <div class="brand">Finan<b>zas</b></div>
+      <button id="syncBtn" class="sync hidden" title="Sincronizar"><i></i><span></span></button>
       <div class="sp"></div>
       <div class="month"><button id="mPrev" aria-label="Mes anterior">‹</button><span id="mLbl"></span><button id="mNext" aria-label="Mes siguiente">›</button></div>
     </div>
@@ -319,7 +329,7 @@ function normalize(d){
   d.v=1;return d;
 }
 function load(){try{const raw=localStorage.getItem(LS);if(raw)return normalize(JSON.parse(raw));}catch(e){}return fresh();}
-function save(){try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){toast('No se pudo guardar en el navegador');}}
+function save(quiet){try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){toast('No se pudo guardar en el navegador');}if(!quiet)syLater(1500);}
 let S=load();
 const live=a=>a.filter(x=>!x.deleted);
 const byId=(a,id)=>a.find(x=>x.id===id);
@@ -714,10 +724,25 @@ V.datos=function(w){
   const le=S.meta.lastExport,days=le?Math.floor((now()-le)/864e5):null;
   const catList=t=>catsSorted(t).map(c=>'<div class="item"><span class="ico">'+ic(c.icon)+'</span><span class="body"><span class="t">'+esc(c.name)+'</span></span><button class="xbtn" data-delcat="'+c.id+'" aria-label="Eliminar">✕</button></div>').join('');
   w.innerHTML='<div class="grid2"><div class="stack">'+
-    '<section class="card"><h3 class="h">Respaldo y sincronización</h3>'+
+    (syOn()?
+      '<section class="card"><h3 class="h">Sincronización en la nube</h3>'+
+        '<div class="kv"><span>Cuenta</span><span>'+esc(SY.session.email||'')+'</span></div>'+
+        '<div class="kv"><span>Estado</span><span class="'+(syState==='ok'?'inc':syState==='busy'?'acc':'exp')+'">'+({ok:'Al día',busy:'Sincronizando…',offline:'Sin conexión',error:'Error',login:'Sesión vencida'}[syState]||'—')+'</span></div>'+
+        '<div class="kv"><span>Última sincronización</span><span class="tnum">'+(SY.last?dLabel(todayISO()).slice(0,0)+new Date(SY.last).toLocaleString('es-UY',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'}):'—')+'</span></div>'+
+        (syMsg&&syState!=='ok'&&syState!=='busy'?'<div class="note exp">'+esc(syMsg)+'</div>':'')+
+        '<div class="actions" style="margin-top:12px"><button class="btn ghost" id="syOff">Desconectar</button><button class="btn pri big" id="syNow">Sincronizar ahora</button></div></section>'
+    :
+      '<section class="card"><h3 class="h">Sincronización en la nube</h3>'+
+        '<div class="field"><label>Project URL</label><input class="in" id="syUrl" placeholder="https://xxxx.supabase.co" autocomplete="off" autocapitalize="off" value="'+esc(SY.url||'')+'"></div>'+
+        '<div class="field"><label>Publishable key</label><input class="in" id="syKey" placeholder="sb_publishable_…" autocomplete="off" autocapitalize="off" value="'+esc(SY.key||'')+'"></div>'+
+        '<div class="row"><div class="field"><label>Email</label><input class="in" id="syMail" type="email" autocomplete="username" value="'+esc(SY.session&&SY.session.email||SY.email||'')+'"></div>'+
+        '<div class="field"><label>Contraseña</label><input class="in" id="syPass" type="password" autocomplete="current-password"></div></div>'+
+        '<div class="actions"><button class="btn pri big" id="syGo">Conectar</button></div>'+
+        '<div class="note">Se hace una sola vez por dispositivo. La contraseña no se guarda: queda una sesión que se renueva sola.</div></section>')+
+    '<section class="card"><h3 class="h">Respaldo manual</h3>'+
       '<div class="actions"><button class="btn pri big" id="exp">Exportar</button><button class="btn big" id="imp">Importar</button></div>'+
       '<div class="note">'+(le?'Último export: hace '+(days===0?'menos de un día':days+' día'+(days===1?'':'s')):'Todavía no exportaste.')+
-      (days===null||days>=7?' <span class="acc">Conviene exportar.</span>':'')+'<br>Importar fusiona: suma lo nuevo y conserva la versión más reciente de cada movimiento. No borra nada de este dispositivo.</div></section>'+
+      (!syOn()&&(days===null||days>=7)?' <span class="acc">Conviene exportar.</span>':'')+'<br>Importar fusiona: suma lo nuevo y conserva la versión más reciente de cada movimiento. No borra nada de este dispositivo.'+(syOn()?' Con la nube conectada, esto queda como respaldo extra.':'')+'</div></section>'+
     '<section class="card"><h3 class="h">Cotización del dólar</h3><div class="row" style="align-items:center"><span>U$S 1 =</span><input class="in tnum" id="rate" inputmode="decimal" value="'+amtStr(S.rate.v)+'"><button class="btn sm" id="rateSave">Guardar</button></div>'+
       '<div class="note">Se usa para totales convertidos a pesos. Los movimientos se guardan en su moneda original.</div></section>'+
     '<section class="card"><h3 class="h">Tarjetas de crédito</h3><div class="list-edit">'+(live(S.cards).map(c=>'<div class="item"><span class="ico">'+ic('card')+'</span><span class="body"><span class="t">'+esc(c.name)+'</span><span class="s">Cierre día '+c.close+' · vence día '+c.due+'</span></span><button class="btn ghost sm" data-ec="'+c.id+'">Editar</button></div>').join('')||'<div class="empty">Sin tarjetas.</div>')+'</div>'+
@@ -729,6 +754,8 @@ V.datos=function(w){
       '<div class="addrow"><input class="in" id="nName" placeholder="Nueva categoría"><select class="in" id="nType"><option value="gasto">Gasto</option><option value="ingreso">Ingreso</option></select><button class="btn sm" id="nAdd">+</button></div><div class="iconpick" id="nIcons">'+Object.keys(ICONS).filter(k=>k!=='card').map(k=>'<button class="cbtn '+(k===UI.newIcon?'on':'')+'" data-ni="'+k+'" aria-label="'+k+'">'+ic(k)+'</button>').join('')+'</div></section>'+
   '</div></div>';
   w.querySelector('#exp').onclick=doExport;
+  if(syOn()){w.querySelector('#syNow').onclick=()=>sync(true);w.querySelector('#syOff').onclick=syDisconnect;}
+  else w.querySelector('#syGo').onclick=()=>{SY.email=w.querySelector('#syMail').value.trim();syConnect(w.querySelector('#syUrl').value,w.querySelector('#syKey').value,w.querySelector('#syMail').value,w.querySelector('#syPass').value);};
   w.querySelector('#imp').onclick=()=>$('#fileIn').click();
   w.querySelector('#rateSave').onclick=()=>{const v=parseAmt(w.querySelector('#rate').value);if(!(v>0))return toast('Cotización inválida');S.rate={v,updated:now()};save();render();toast('Cotización actualizada');};
   w.querySelector('#ncAdd').onclick=()=>{
@@ -744,8 +771,8 @@ V.datos=function(w){
   };
   w.querySelector('#wipe').onclick=()=>{
     if(!confirm('¿Borrar TODO en este dispositivo? Exportá antes si no tenés respaldo.'))return;
-    if(!confirm('Confirmá de nuevo: se borran movimientos, fijos, tarjetas y categorías.'))return;
-    S=fresh();save();render();toast('Datos borrados');
+    if(!confirm(syOn()?'Confirmá de nuevo. Ojo: con la nube conectada, los datos se vuelven a descargar en la próxima sincronización.':'Confirmá de nuevo: se borran movimientos, fijos, tarjetas y categorías.'))return;
+    S=fresh();SY.cursor='';SY.pushed={};sySave();save();render();toast('Datos borrados');
   };
   w.onclick=e=>{
     const ni=e.target.closest('[data-ni]');
@@ -799,6 +826,128 @@ $('#fileIn').addEventListener('change',e=>{
   rd.readAsText(file);
 });
 
+/* ───────── Sincronización con Supabase ───────── */
+// Cada registro (movimiento, fijo, tarjeta, categoría, pago de resumen, cotización) es una fila de fin_records.
+// Pull: baja lo que cambió en el servidor desde el último cursor (srv_at). Push: sube lo que cambió acá desde el último envío.
+// Gana la versión con 'updated' más alto, acá (syApply) y en el servidor (trigger fin_records_guard).
+var LSS=LS+'-sync',KINDS=['cats','cards','movs','fixed','cardPays'];
+var SY=(function(){try{return JSON.parse(localStorage.getItem(LSS))||{};}catch(e){return {};}})();
+SY.pushed=SY.pushed||{};SY.cursor=SY.cursor||'';
+var syBusy=false,syAgain=false,syTimer=null,syState='off',syMsg='';
+function sySave(){try{localStorage.setItem(LSS,JSON.stringify(SY));}catch(e){}}
+function syOn(){return !!(SY.url&&SY.key&&SY.session);}
+function syLater(ms){if(!syOn())return;clearTimeout(syTimer);syTimer=setTimeout(()=>sync(false),ms);}
+function hhmm(t){const d=new Date(t);return pad(d.getHours())+':'+pad(d.getMinutes());}
+function setSy(st,msg){
+  syState=st;syMsg=msg||'';
+  const b=$('#syncBtn');if(!b)return;
+  b.className='sync '+st+(st==='off'?' hidden':'');
+  b.querySelector('span').textContent={busy:'Sincronizando…',ok:'Sync '+(SY.last?hhmm(SY.last):''),offline:'Sin conexión',error:'Error de sync',login:'Iniciar sesión'}[st]||'';
+  b.title=syMsg||'Sincronizar ahora';
+}
+async function syAuth(body,grant){
+  const res=await fetch(SY.url+'/auth/v1/token?grant_type='+grant,{method:'POST',headers:{apikey:SY.key,'Content-Type':'application/json'},body:JSON.stringify(body)});
+  let j={};try{j=await res.json();}catch(e){}
+  if(!res.ok){const e=new Error(j.error_description||j.msg||j.message||('HTTP '+res.status));e.status=res.status;e.auth=true;throw e;}
+  SY.session={access_token:j.access_token,refresh_token:j.refresh_token,expires_at:j.expires_at||Math.floor(now()/1000)+(j.expires_in||3600),user_id:j.user.id,email:j.user.email};
+  sySave();
+}
+async function syRefresh(){
+  try{await syAuth({refresh_token:SY.session.refresh_token},'refresh_token');}
+  catch(e){if(e.status&&e.status<500){SY.session=null;sySave();}throw e;}   // sin red: conserva la sesión y reintenta luego
+}
+async function syFetch(path,opt,retried){
+  opt=opt||{};
+  const res=await fetch(SY.url+path,{method:opt.method||'GET',body:opt.body,
+    headers:Object.assign({apikey:SY.key,Authorization:'Bearer '+SY.session.access_token,'Content-Type':'application/json'},opt.headers||{})});
+  if(res.status===401&&!retried){await syRefresh();return syFetch(path,opt,true);}
+  if(!res.ok){let m='';try{const j=await res.json();m=j.message||j.hint||'';}catch(e){}const e=new Error(m||('HTTP '+res.status));e.status=res.status;throw e;}
+  return res;
+}
+function syApply(r){
+  const key=r.kind+':'+r.id,rec=r.data;if(!rec||typeof rec!=='object')return 0;
+  const a=rec.updated||0;
+  if(r.kind==='rate'){
+    const b=S.rate.updated||0;
+    if(a>b&&typeof rec.v==='number'){S.rate=rec;SY.pushed[key]=a;return 1;}
+    if(a===b)SY.pushed[key]=a;return 0;
+  }
+  if(!KINDS.includes(r.kind))return 0;
+  if(r.kind==='cats'&&!ICONS[rec.icon])rec.icon=EMO[rec.icon]||'dot';
+  const cur=byId(S[r.kind],r.id);
+  if(!cur){S[r.kind].push(rec);SY.pushed[key]=a;return 1;}
+  const b=cur.updated||0;
+  if(a>b){for(const k of Object.keys(cur))if(!(k in rec))delete cur[k];Object.assign(cur,rec);SY.pushed[key]=a;return 1;}
+  if(a===b)SY.pushed[key]=a;
+  return 0;   // la versión local es más nueva: queda pendiente de subir
+}
+async function syPull(){
+  // 5 s de solapamiento por si dos escrituras del servidor llegaron casi juntas; re-aplicar es inocuo
+  let since=SY.cursor?new Date(Date.parse(SY.cursor)-5000).toISOString():'1970-01-01T00:00:00Z',n=0;
+  for(;;){
+    const rows=await (await syFetch('/rest/v1/fin_records?select=kind,id,data,srv_at&srv_at=gt.'+encodeURIComponent(since)+'&order=srv_at.asc&limit=1000')).json();
+    for(const r of rows)n+=syApply(r);
+    if(rows.length){since=rows[rows.length-1].srv_at;if(!SY.cursor||Date.parse(since)>Date.parse(SY.cursor))SY.cursor=since;}
+    if(rows.length<1000)break;
+  }
+  return n;
+}
+async function syPush(){
+  const all=[];for(const k of KINDS)for(const r of S[k])if(r&&r.id)all.push([k,r.id,r]);all.push(['rate','rate',S.rate]);
+  const dirty=all.filter(([k,id,r])=>SY.pushed[k+':'+id]!==(r.updated||0));
+  for(let i=0;i<dirty.length;i+=400){
+    const chunk=dirty.slice(i,i+400).map(([k,id,r])=>({user_id:SY.session.user_id,kind:k,id,updated:r.updated||0,data:JSON.parse(JSON.stringify(r))}));
+    await syFetch('/rest/v1/fin_records?on_conflict=user_id,kind,id',{method:'POST',headers:{Prefer:'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(chunk)});
+    chunk.forEach(c=>{SY.pushed[c.kind+':'+c.id]=c.updated;});sySave();
+  }
+  return dirty.length;
+}
+function afterRemote(){
+  // no pisar un formulario a medio cargar: en Cargar o con un modal abierto solo se actualiza el encabezado
+  if(UI.tab==='cargar'||!$('#modal').classList.contains('hidden'))renderHeader();else render();
+}
+async function sync(manual){
+  if(!syOn())return;
+  if(syBusy){syAgain=true;return;}
+  syBusy=true;clearTimeout(syTimer);setSy('busy');
+  try{
+    if((SY.session.expires_at||0)*1000<now()+60000)await syRefresh();
+    const n=await syPull();
+    sySave();
+    if(n){save(true);afterRemote();}
+    const up=await syPush();
+    SY.last=now();sySave();setSy('ok');
+    if(manual)toast('Sincronizado'+(n?' · '+n+' recibidos':'')+(up?' · '+up+' enviados':''));
+  }catch(e){
+    if(!syOn()){setSy('login','La sesión venció: volvé a iniciar sesión en Datos');if(manual)toast('Volvé a iniciar sesión');}
+    else if(e instanceof TypeError||navigator.onLine===false){setSy('offline','Sin conexión: los cambios quedan guardados acá y se suben al volver la red');if(manual)toast('Sin conexión');}
+    else{setSy('error',e.message);if(manual)toast('Error de sync: '+e.message);}
+  }finally{
+    syBusy=false;
+    if(UI.tab==='datos'&&$('#modal').classList.contains('hidden'))render();
+    if(syAgain){syAgain=false;syLater(500);}
+  }
+}
+async function syConnect(url,key,email,pass){
+  url=String(url).trim().replace(/\/+$/,'');key=String(key).trim();
+  if(!/^https:\/\/[^\s/]+$/.test(url))return toast('URL inválida (https://xxxx.supabase.co)');
+  if(!key)return toast('Falta la clave publishable');
+  if(!email||!pass)return toast('Falta email o contraseña');
+  SY.url=url;SY.key=key;SY.cursor='';SY.pushed={};
+  try{setSy('busy');await syAuth({email:email.trim(),password:pass},'password');}
+  catch(e){SY.session=null;sySave();setSy('off');
+    return toast(e instanceof TypeError?'No se pudo conectar con esa URL':/invalid/i.test(e.message)?'Email o contraseña incorrectos':'Error: '+e.message);}
+  render();await sync(true);
+}
+function syDisconnect(){
+  if(!confirm('¿Desconectar este dispositivo de la nube? Los datos locales se mantienen.'))return;
+  SY.session=null;sySave();setSy('off');render();toast('Desconectado');
+}
+$('#syncBtn').addEventListener('click',()=>{if(syState==='login'){UI.tab='datos';render();}else sync(true);});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')sync(false);});
+window.addEventListener('online',()=>sync(false));
+setInterval(()=>{if(document.visibilityState!=='hidden')sync(false);},120000);
+
 /* ───────── Render general ───────── */
 function renderHeader(){
   $('#mLbl').textContent=ymLabel(UI.ym);
@@ -823,8 +972,9 @@ $('#main').addEventListener('click',e=>{
 });
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 
-window.__fin={get S(){return S;},UI,render,merge,monthData,allInst,parseAmt,stmtOf,dueISO};
+window.__fin={get S(){return S;},get SY(){return SY;},get syState(){return syState;},UI,render,merge,monthData,allInst,parseAmt,stmtOf,dueISO,sync,syConnect,save};
 render();
+if(syOn()){setSy('idle');sync(false);}
 })();
 </script>
 </body>
